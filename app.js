@@ -40,7 +40,7 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
       { id: 'shaft', name: 'Propeller shaft / driveline check', category: 'Driveline', km: 24000, months: 18, match: ['Propeller shaft check'], basis: 'Toyota guide', toyota: 'Inspect / re-torque every 24,000 km / 18 months' },
       { id: 'belt', name: 'Accessory / serpentine drive belt inspection', category: 'Engine', km: 24000, months: 18, match: ['Drive belt inspection', 'Accessory / serpentine drive belt inspection', 'Serpentine belt'], basis: 'Toyota: initial 96,000 km / 72 mo, then every 24,000 km / 18 mo', toyota: 'Initial 96,000 km / 72 months; then 24,000 km / 18 months' },
       { id: 'plugs', name: 'Spark plugs', category: 'Engine', km: 192000, months: null, match: ['Spark plugs'], basis: 'Toyota guide', toyota: '192,000 km / 12 years' },
-      { id: 'battery', name: 'Battery test / replacement review', category: 'Electrical', km: null, months: 48, match: ['Battery replaced', 'Battery test'], basis: 'User plan', toyota: 'Inspect at service; replace based on condition' },
+      { id: 'battery', name: 'Battery', category: 'Electrical', km: null, months: 60, match: ['Battery replaced', 'Battery test'], basis: 'Owner-selected interval', toyota: 'Replace every 5 years' },
       { id: 'suspension', name: 'Suspension & steering inspection', category: 'Chassis', km: 24000, months: 18, match: ['Suspension & steering inspection'], basis: 'User plan', toyota: 'Inspect every 24,000 km / 18 months' }
     ]
   };
