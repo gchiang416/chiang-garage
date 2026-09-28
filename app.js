@@ -226,7 +226,7 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
 
   document.querySelector('#signOut').addEventListener('click', () => signOutUser());
 
-  watchAuth(async user => {
+  const handleAuthChange = async user => {
     if (!user) {
       currentUser = null;
       cloudReady = false;
@@ -247,7 +247,21 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
     document.querySelector('#accountEmail').textContent = user.email || '';
     render();
     startCloudSync();
-  });
+  };
+
+  const localQaMode = new URLSearchParams(location.search).get('qa') === '1'
+    && ['127.0.0.1', 'localhost'].includes(location.hostname);
+  if (localQaMode) {
+    setTimeout(() => {
+      authGate.hidden = true;
+      appShell.hidden = false;
+      document.querySelector('#accountEmail').textContent = 'Local responsive preview';
+      setSyncStatus('Preview mode', 'saved');
+      render();
+    }, 0);
+  } else {
+    watchAuth(handleAuthChange);
+  }
 
   const historyFor = schedule => [...state.records].filter(record => record.items.some(item => schedule.match.includes(item))).sort(byDateDesc);
   const latestFor = schedule => historyFor(schedule)[0] || null;
@@ -384,6 +398,7 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
     document.querySelector('#recordCost').value = existing?.cost ?? '';
     document.querySelector('#recordNotes').value = existing?.notes || '';
     recordDialog.showModal();
+    recordDialog.scrollTop = 0;
   }
   document.querySelector('#addRecord').addEventListener('click', () => openRecord());
   document.querySelector('#cancelRecord').addEventListener('click', () => recordDialog.close());
