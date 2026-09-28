@@ -33,7 +33,7 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
       { id: 'cabin', name: 'Cabin air filter', category: 'Filters', km: 16000, months: 12, match: ['Cabin air filter'], basis: 'Toyota Canada', toyota: '16,000 km / 12 months' },
       { id: 'air', name: 'Engine air filter', category: 'Filters', km: 48000, months: 36, match: ['Engine air filter'], basis: 'User plan', toyota: '48,000 km / 36 months; inspect sooner in dust' },
       { id: 'brakeinspect', name: 'Brake servicing', category: 'Brakes', km: null, months: 24, match: ['Brake service', 'Brake pads', 'Brake rotors'], basis: 'Owner-selected interval', toyota: 'Every 2 years' },
-      { id: 'brakefluid', name: 'Brake fluid', category: 'Fluids', km: 48000, months: 36, match: ['Brake fluid'], basis: 'User plan', toyota: 'Inspect at service; replace based on condition' },
+      { id: 'brakefluid', name: 'Brake fluid', category: 'Fluids', km: 40000, months: 36, match: ['Brake fluid'], basis: 'Owner-selected interval', toyota: 'Every 40,000 km or 3 years' },
       { id: 'coolant', name: 'Engine coolant', category: 'Fluids', km: 80000, months: 60, match: ['Engine coolant'], basis: 'Toyota after first replacement', toyota: 'First at 160,000 km / 10 years; then 80,000 km / 5 years' },
       { id: 'atf', name: 'Automatic transmission fluid', category: 'Fluids', km: 96000, months: 72, match: ['Automatic transmission fluid'], basis: 'Owner-selected interval', toyota: 'Every 96,000 km or 6 years' },
       { id: 'diff', name: 'AWD differential fluid', category: 'Fluids', km: 48000, months: null, match: ['AWD differential fluid'], basis: 'Owner-selected interval', toyota: 'Every 48,000 km' },
