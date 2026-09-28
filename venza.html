@@ -34,42 +34,10 @@
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="identity"><div class="mark" aria-hidden="true"><svg viewBox="0 0 64 40" fill="none"><path d="M9 27h46l-5-15H20L9 27Z" fill="#F3A447"/><path d="M19 12 27 3h18l5 9" stroke="#F5F2EA" stroke-width="4" stroke-linejoin="round"/><circle cx="20" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/><circle cx="46" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/></svg></div><div><div class="eyebrow">Personal service record</div><h1>2012 Toyota Venza</h1></div></div>
-      <div class="date" id="today"></div>
-    </header>
-
-    <div class="grid">
-      <section class="stack">
-        <article class="card odometer">
-          <div class="odo-head"><div><div class="odo-label">Current odometer</div><div class="odo-reading"><strong id="odometerValue">128,000</strong><span>km</span></div><div class="odo-note">AWD · 2.7 L four-cylinder · updated <span id="odometerDate">today</span></div></div><button class="edit-odo" id="editOdometer">Update reading</button></div>
-          <div class="meters"><div class="meter"><b id="attentionCount">0</b><span>need attention</span></div><div class="meter"><b id="nextDistance">—</b><span>km to next item</span></div><div class="meter"><b id="recordCount">0</b><span>service records</span></div></div>
-        </article>
-
-        <article class="card section">
-          <div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><button class="link-btn" type="button">View schedule</button></div>
-          <div class="task-list" id="taskList"></div>
-          <div class="source-note"><b>Schedule basis:</b> your workbook, Toyota’s 2012 Venza guide, and Toyota Canada’s 6-month / 8,000-km service pattern. Time or distance can trigger an item first.</div>
-        </article>
-      </section>
-
-      <aside class="card history">
-        <div class="section-head"><div><h2>Recent history</h2><p>Latest completed work from your records.</p></div><button class="link-btn" type="button">All records</button></div>
-        <div class="timeline" id="timeline"></div>
-      </aside>
-    </div>
-  </main>
-
-  <dialog id="odometerDialog">
-    <form method="dialog" class="modal" id="odometerForm">
-      <h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p>
-      <div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" name="odometer" type="number" min="0" step="1" required inputmode="numeric"></div>
-      <div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" name="date" type="date" required></div>
-      <div class="modal-actions"><button class="btn" value="cancel" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div>
-    </form>
-  </dialog>
+  <section class="auth-gate"><div class="auth-card"><div class="auth-mark" aria-hidden="true">CG</div><div class="eyebrow">The Chiang Garage</div><h1>Opening your garage…</h1><p>Connecting securely to your maintenance records.</p></div></section>
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
+
 
