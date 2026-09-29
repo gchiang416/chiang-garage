@@ -24,7 +24,12 @@ const firebaseConfig = {
   appId: '1:593588251794:web:718beba30bf5fde2968a4b'
 };
 
-export const EXPECTED_UID = 'n1f0iYiWV0WWGHH7oa1VV4RpK9D3', 'x315KbnccwNB80MDTc4Jukw5FkP2';
+export const AUTHORIZED_UIDS = new Set([
+  'n1f0iYiWV0WWGHH7oa1VV4RpK9D3',
+  'x315KbnccwNB80MDTc4Jukw5FkP2'
+]);
+
+export const isAuthorizedUser = user => Boolean(user && AUTHORIZED_UIDS.has(user.uid));
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);

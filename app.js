@@ -1,4 +1,4 @@
-import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage } from './firebase-sync.js';
+import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGarage } from './firebase-sync.js?v=20260929-0001';
 
 (() => {
   'use strict';
@@ -236,7 +236,7 @@ import { EXPECTED_UID, signIn, signOutUser, watchAuth, watchGarage, writeGarage 
       appShell.hidden = true;
       return;
     }
-    if (user.uid !== EXPECTED_UID) {
+    if (!isAuthorizedUser(user)) {
       loginError.textContent = 'This account does not have access to The Chiang Garage.';
       await signOutUser();
       return;
