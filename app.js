@@ -1,4 +1,4 @@
-import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGarage } from './firebase-sync.js?v=20260929-0001';
+import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGarage } from './firebase-sync.js?v=20260929-0002';
 
 (() => {
   'use strict';

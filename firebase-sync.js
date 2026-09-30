@@ -26,7 +26,7 @@ const firebaseConfig = {
 
 export const AUTHORIZED_UIDS = new Set([
   'n1f0iYiWV0WWGHH7oa1VV4RpK9D3',
-  'x315KbnccwNB80MDTc4Jukw5FkP2'
+  'Mx5lmeet1zgOSfGjaPxGf5q1Fq82'
 ]);
 
 export const isAuthorizedUser = user => Boolean(user && AUTHORIZED_UIDS.has(user.uid));
