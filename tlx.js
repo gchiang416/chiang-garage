@@ -29,7 +29,8 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       { id: 'tlx-2025-06-brakes', date: '2025-06-01', km: 65505, items: ['Brake service', 'Brake fluid'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day was not provided.' },
       { id: 'tlx-2024-10-service', date: '2024-10-01', km: null, items: ['Cabin air filter', 'Engine air filter', 'Brake service'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day and odometer were not provided.' },
       { id: 'tlx-2023-12-brakes', date: '2023-12-01', km: null, items: ['Brake service'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day and odometer were not provided.' },
-      { id: 'tlx-2023-11-filters', date: '2023-11-01', km: 40000, items: ['Cabin air filter', 'Engine air filter'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day was not provided.' }
+      { id: 'tlx-2023-11-filters', date: '2023-11-01', km: 40000, items: ['Cabin air filter', 'Engine air filter'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day was not provided.' },
+      { id: 'tlx-2020-08-original-battery', date: '2020-08-01', km: null, items: ['Battery'], shop: '', cost: null, notes: 'Original battery supplied with the vehicle at purchase in August 2020. Exact day and odometer were not recorded.' }
     ],
     planned: [],
     activityNotes: {
@@ -37,6 +38,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       pcv: 'Estimated cost from workbook: $256.87.'
     },
     ignoredTaskIds: [],
+    removedActivityIds: [],
     schedules: [
       { id: 'oil', name: 'Engine oil & filter', category: 'Routine', km: 8000, months: 12, firstKm: 8000, firstMonths: 12, match: ['Engine oil & filter', 'Oil change'], basis: 'Workbook schedule', toyota: 'Every 8,000 km or 12 months' },
       { id: 'tires', name: 'Tire rotation & inspection', category: 'Chassis', km: 8000, months: null, firstKm: 8000, match: ['Tire rotation', 'Tire inspection', 'New tires installed'], basis: 'Workbook schedule', toyota: 'Rotate every 8,000 km; replace below 2/32 in tread' },
@@ -75,7 +77,9 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
   }
 
   function normalize(incoming) {
-    const records = Array.isArray(incoming?.records) ? incoming.records : [];
+    const records = Array.isArray(incoming?.records) ? [...incoming.records] : [];
+    const originalBattery = seed.records.find(record => record.id === 'tlx-2020-08-original-battery');
+    if (originalBattery && !records.some(record => record.id === originalBattery.id)) records.push(clone(originalBattery));
     return {
       ...clone(seed),
       ...incoming,
@@ -84,7 +88,8 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       schedules: clone(seed.schedules),
       planned: reconcilePlanned(records, incoming?.planned || []),
       activityNotes: incoming?.activityNotes || {},
-      ignoredTaskIds: incoming?.ignoredTaskIds || []
+      ignoredTaskIds: incoming?.ignoredTaskIds || [],
+      removedActivityIds: incoming?.removedActivityIds || []
     };
   }
 
@@ -106,7 +111,8 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     records: state.records,
     planned: state.planned,
     activityNotes: state.activityNotes,
-    ignoredTaskIds: state.ignoredTaskIds
+    ignoredTaskIds: state.ignoredTaskIds,
+    removedActivityIds: state.removedActivityIds
   });
 
   const saveLocal = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -157,7 +163,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
         <article class="card section"><div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><a class="link-btn" href="#maintenance-history">Complete history</a></div><div class="task-list" id="taskList"></div><div class="ignored-controls" id="ignoredControls"></div><div class="source-note"><b>Schedule basis:</b> your workbook and Acura’s Maintenance Minder guidance. The earliest time or distance limit wins.</div></article></section>
         <aside class="card history"><div class="section-head"><div><h2>Recent history</h2><p>Latest completed work from your records.</p></div><a class="link-btn" href="#maintenance-history">Full table</a></div><div class="timeline" id="timeline"></div></aside></div>
       </section>
-      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Acura guidance and the two latest matching service actions.</p></div><button class="primary-action" id="addRecord">Log service</button></div><div class="activity-history" id="activityHistory"></div></section>
+      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Acura guidance and the two latest matching service actions.</p></div><div class="history-actions"><button class="btn" id="restoreRemoved" type="button" hidden></button><button class="primary-action" id="addRecord">Log service</button></div></div><div class="activity-history" id="activityHistory"></div></section>
       <section class="page-section support-strip"><div><h2>Data & sources</h2><p>Your updates are saved online and synchronized across signed-in devices.</p></div><div class="data-actions"><button class="btn primary" id="exportData">Export backup</button><label class="btn" for="importData">Import backup</label><input class="file-input" id="importData" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">Reset maintenance data</button></div><div class="source-links compact"><a class="source-link" href="https://www.acura.ca/en/service-parts/maintenance-schedules" target="_blank" rel="noreferrer">Acura Canada maintenance schedules</a><a class="source-link" href="https://owners.acura.com/utility/download?path=/static/pdfs/2020/TLX/2020_TLX_Maintenance_Minder.pdf" target="_blank" rel="noreferrer">2020 TLX Maintenance Minder guide</a></div></section>
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
@@ -183,6 +189,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     stopGarageWatch?.();
     stopGarageWatch = watchTlx(
       async data => {
+        const needsBatteryMigration = !data?.records?.some(record => record.id === 'tlx-2020-08-original-battery');
         const onlineState = normalize(data);
         if (!onlineState.records.length && state.records.length) {
           cloudReady = true;
@@ -200,7 +207,18 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
         cloudReady = true;
         saveLocal();
         render();
-        setSyncStatus('Saved online', 'saved');
+        if (needsBatteryMigration) {
+          setSyncStatus('Saving battery history…');
+          try {
+            await writeTlx(cloudState());
+            setSyncStatus('Saved online', 'saved');
+          } catch (error) {
+            console.error(error);
+            setSyncStatus('Could not sync', 'error');
+          }
+        } else {
+          setSyncStatus('Saved online', 'saved');
+        }
       },
       async () => {
         try {
@@ -379,13 +397,16 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     document.querySelector('#today').textContent = new Intl.DateTimeFormat('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }).format(today);
     document.querySelector('#odometerValue').textContent = fmtKm(state.odometer.km);
     document.querySelector('#odometerDate').textContent = state.odometer.date === isoToday ? 'today' : fmtDate(state.odometer.date);
-    const schedule = ranked();
+    const schedule = ranked().filter(item => !state.removedActivityIds.includes(item.id));
     const visibleSchedule = schedule.filter(item => !state.ignoredTaskIds.includes(item.id));
     const attention = visibleSchedule.filter(item => ['overdue', 'soon'].includes(item.status.kind));
     const positive = visibleSchedule.map(item => item.km && item.status.last?.km != null ? item.status.last.km + item.km - state.odometer.km : null).filter(value => value > 0);
     document.querySelector('#attentionCount').textContent = attention.length;
     document.querySelector('#nextDistance').textContent = positive.length ? fmtKm(Math.min(...positive)) : '—';
     document.querySelector('#recordCount').textContent = state.records.length;
+    const restoreRemoved = document.querySelector('#restoreRemoved');
+    restoreRemoved.hidden = !state.removedActivityIds.length;
+    restoreRemoved.textContent = `Restore removed (${state.removedActivityIds.length})`;
     document.querySelector('#taskList').innerHTML = visibleSchedule.length
       ? visibleSchedule.slice(0, 6).map(item => `<div class="task ${item.status.kind}"><span class="task-bar"></span><div><div class="task-title">${esc(item.name)}</div><div class="task-detail">${esc(item.status.detail)}</div></div><span class="badge">${esc(item.status.label)}</span><div class="task-actions"><button class="update-task" type="button" data-complete="${esc(item.id)}" aria-label="Update ${esc(item.name)}">Update</button><button class="ignore-task" type="button" data-ignore="${esc(item.id)}" aria-label="Ignore ${esc(item.name)}">Ignore</button></div></div>`).join('')
       : '<div class="empty">No upcoming items are showing. You can restore ignored activities below.</div>';
@@ -400,9 +421,10 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
         const history = historyFor(item);
         const last = history[0] || null;
         const previous = history[1] || null;
-        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button></div>`;
+        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><div class="activity-actions"><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button><button class="remove-activity" type="button" data-remove-activity="${esc(item.id)}">Remove</button></div></div>`;
       }).join('');
-      return `<section class="card activity-group"><header class="activity-group-head"><h3>${esc(group.name)}</h3><span>${esc(group.note)}</span></header><div class="activity-table"><div class="activity-row activity-row-head"><div>Maintenance activity</div><div>Suggested interval</div><div>Latest action</div><div>Previous action</div><div>Notes</div><div></div></div>${rows}</div></section>`;
+      if (!items.length) return '';
+      return `<section class="card activity-group"><header class="activity-group-head"><h3>${esc(group.name)}</h3><span>${esc(group.note)}</span></header><div class="activity-table"><div class="activity-row activity-row-head"><div>Maintenance activity</div><div>Suggested interval</div><div>Latest action</div><div>Previous action</div><div>Notes</div><div>Actions</div></div>${rows}</div></section>`;
     }).join('');
   }
 
@@ -416,7 +438,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
   function openRecord(preselect, existing) {
     editingId = existing?.id || null;
     document.querySelector('#recordDialogTitle').textContent = existing ? 'Update service record' : preselect ? `Update ${preselect}` : 'Log service';
-    const names = [...new Set(state.schedules.map(item => item.match[0]))];
+    const names = [...new Set(state.schedules.filter(item => !state.removedActivityIds.includes(item.id)).map(item => item.match[0]))];
     document.querySelector('#itemChecks').innerHTML = names.map(name => `<label class="check"><input type="checkbox" name="serviceItem" value="${esc(name)}" ${(existing?.items.includes(name) || preselect === name) ? 'checked' : ''}><span>${esc(name)}</span></label>`).join('');
     document.querySelector('#recordDate').value = existing?.date || isoToday;
     document.querySelector('#recordKm').value = existing?.km ?? state.odometer.km;
@@ -455,8 +477,28 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       save(); render(); toast('Ignored activities restored');
       return;
     }
+    const removeActivity = event.target.closest('[data-remove-activity]');
+    if (removeActivity) {
+      const item = state.schedules.find(schedule => schedule.id === removeActivity.dataset.removeActivity);
+      if (!item) return;
+      const dialog = document.querySelector('#confirmDialog');
+      document.querySelector('#confirmTitle').textContent = `Remove ${item.name}?`;
+      document.querySelector('#confirmText').textContent = 'This hides the activity from the maintenance table and upcoming reminders. Existing service history is kept, and you can restore the activity later.';
+      dialog.showModal();
+      dialog.addEventListener('close', () => {
+        if (dialog.returnValue !== 'confirm') return;
+        state.removedActivityIds = [...new Set([...state.removedActivityIds, item.id])];
+        state.ignoredTaskIds = state.ignoredTaskIds.filter(id => id !== item.id);
+        save(); render(); toast(`${item.name} removed`);
+      }, { once: true });
+      return;
+    }
     const complete = event.target.closest('[data-complete]'); if (complete) { const item = state.schedules.find(schedule => schedule.id === complete.dataset.complete); openRecord(item?.match[0]); }
     const edit = event.target.closest('.edit-record'); if (edit) openRecord(null, state.records.find(record => record.id === edit.dataset.id));
+  });
+  document.querySelector('#restoreRemoved').addEventListener('click', () => {
+    state.removedActivityIds = [];
+    save(); render(); toast('Removed activities restored');
   });
   document.addEventListener('change', event => {
     const note = event.target.closest('.activity-note');

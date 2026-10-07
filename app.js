@@ -27,6 +27,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     planned: [],
     activityNotes: {},
     ignoredTaskIds: [],
+    removedActivityIds: [],
     schedules: [
       { id: 'oil', name: 'Engine oil & filter', category: 'Engine', km: 8000, months: 6, match: ['Engine oil & filter', 'Oil change'], basis: 'Owner-selected interval', toyota: '8,000 km / 6 months' },
       { id: 'tires', name: 'Tire rotation & inspection', category: 'Tires', km: 8000, months: 6, match: ['Tire rotation', 'New tires installed'], basis: 'Toyota Canada', toyota: '8,000 km / 6 months' },
@@ -69,7 +70,8 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
       schedules: clone(seed.schedules),
       planned: reconcilePlanned(records, incoming?.planned || []),
       activityNotes: incoming?.activityNotes || {},
-      ignoredTaskIds: incoming?.ignoredTaskIds || []
+      ignoredTaskIds: incoming?.ignoredTaskIds || [],
+      removedActivityIds: incoming?.removedActivityIds || []
     };
   }
 
@@ -91,7 +93,8 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     records: state.records,
     planned: state.planned,
     activityNotes: state.activityNotes,
-    ignoredTaskIds: state.ignoredTaskIds
+    ignoredTaskIds: state.ignoredTaskIds,
+    removedActivityIds: state.removedActivityIds
   });
 
   const saveLocal = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -142,7 +145,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
         <article class="card section"><div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><a class="link-btn" href="#maintenance-history">Complete history</a></div><div class="task-list" id="taskList"></div><div class="ignored-controls" id="ignoredControls"></div><div class="source-note"><b>Schedule basis:</b> your workbook, Toyota’s model-specific guide, and Toyota Canada’s service rhythm. The earliest time or distance limit wins.</div></article></section>
         <aside class="card history"><div class="section-head"><div><h2>Recent history</h2><p>Latest completed work from your records.</p></div><a class="link-btn" href="#maintenance-history">Full table</a></div><div class="timeline" id="timeline"></div></aside></div>
       </section>
-      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Toyota guidance and the two latest matching service actions.</p></div><button class="primary-action" id="addRecord">Log service</button></div><div class="activity-history" id="activityHistory"></div></section>
+      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Toyota guidance and the two latest matching service actions.</p></div><div class="history-actions"><button class="btn" id="restoreRemoved" type="button" hidden></button><button class="primary-action" id="addRecord">Log service</button></div></div><div class="activity-history" id="activityHistory"></div></section>
       <section class="page-section support-strip"><div><h2>Data & sources</h2><p>Your updates are saved online and synchronized across signed-in devices.</p></div><div class="data-actions"><button class="btn primary" id="exportData">Export backup</button><label class="btn" for="importData">Import backup</label><input class="file-input" id="importData" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">Reset maintenance data</button></div><div class="source-links compact"><a class="source-link" href="https://www.toyota.ca/en/owners/service/" target="_blank" rel="noreferrer">Toyota Canada service guidance</a><a class="source-link" href="https://assets.sia.toyota.com/publications/en/omms-s/T-MMS-12Venza/pdf/2012_Toyota_Venza_WMG.pdf" target="_blank" rel="noreferrer">2012 Venza maintenance guide</a></div></section>
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
@@ -352,13 +355,16 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     document.querySelector('#today').textContent = new Intl.DateTimeFormat('en-CA', { weekday: 'long', month: 'long', day: 'numeric' }).format(today);
     document.querySelector('#odometerValue').textContent = fmtKm(state.odometer.km);
     document.querySelector('#odometerDate').textContent = state.odometer.date === isoToday ? 'today' : fmtDate(state.odometer.date);
-    const schedule = ranked();
+    const schedule = ranked().filter(item => !state.removedActivityIds.includes(item.id));
     const visibleSchedule = schedule.filter(item => !state.ignoredTaskIds.includes(item.id));
     const attention = visibleSchedule.filter(item => ['overdue', 'soon'].includes(item.status.kind));
     const positive = visibleSchedule.map(item => item.km && item.status.last?.km != null ? item.status.last.km + item.km - state.odometer.km : null).filter(value => value > 0);
     document.querySelector('#attentionCount').textContent = attention.length;
     document.querySelector('#nextDistance').textContent = positive.length ? fmtKm(Math.min(...positive)) : '—';
     document.querySelector('#recordCount').textContent = state.records.length;
+    const restoreRemoved = document.querySelector('#restoreRemoved');
+    restoreRemoved.hidden = !state.removedActivityIds.length;
+    restoreRemoved.textContent = `Restore removed (${state.removedActivityIds.length})`;
     document.querySelector('#taskList').innerHTML = visibleSchedule.length
       ? visibleSchedule.slice(0, 6).map(item => `<div class="task ${item.status.kind}"><span class="task-bar"></span><div><div class="task-title">${esc(item.name)}</div><div class="task-detail">${esc(item.status.detail)}</div></div><span class="badge">${esc(item.status.label)}</span><div class="task-actions"><button class="update-task" type="button" data-complete="${esc(item.id)}" aria-label="Update ${esc(item.name)}">Update</button><button class="ignore-task" type="button" data-ignore="${esc(item.id)}" aria-label="Ignore ${esc(item.name)}">Ignore</button></div></div>`).join('')
       : '<div class="empty">No upcoming items are showing. You can restore ignored activities below.</div>';
@@ -373,9 +379,10 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
         const history = historyFor(item);
         const last = history[0] || null;
         const previous = history[1] || null;
-        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button></div>`;
+        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><div class="activity-actions"><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button><button class="remove-activity" type="button" data-remove-activity="${esc(item.id)}">Remove</button></div></div>`;
       }).join('');
-      return `<section class="card activity-group"><header class="activity-group-head"><h3>${esc(group.name)}</h3><span>${esc(group.note)}</span></header><div class="activity-table"><div class="activity-row activity-row-head"><div>Maintenance activity</div><div>Suggested interval</div><div>Latest action</div><div>Previous action</div><div>Notes</div><div></div></div>${rows}</div></section>`;
+      if (!items.length) return '';
+      return `<section class="card activity-group"><header class="activity-group-head"><h3>${esc(group.name)}</h3><span>${esc(group.note)}</span></header><div class="activity-table"><div class="activity-row activity-row-head"><div>Maintenance activity</div><div>Suggested interval</div><div>Latest action</div><div>Previous action</div><div>Notes</div><div>Actions</div></div>${rows}</div></section>`;
     }).join('');
   }
 
@@ -389,7 +396,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   function openRecord(preselect, existing) {
     editingId = existing?.id || null;
     document.querySelector('#recordDialogTitle').textContent = existing ? 'Update service record' : preselect ? `Update ${preselect}` : 'Log service';
-    const names = [...new Set(state.schedules.map(item => item.match[0]))];
+    const names = [...new Set(state.schedules.filter(item => !state.removedActivityIds.includes(item.id)).map(item => item.match[0]))];
     document.querySelector('#itemChecks').innerHTML = names.map(name => `<label class="check"><input type="checkbox" name="serviceItem" value="${esc(name)}" ${(existing?.items.includes(name) || preselect === name) ? 'checked' : ''}><span>${esc(name)}</span></label>`).join('');
     document.querySelector('#recordDate').value = existing?.date || isoToday;
     document.querySelector('#recordKm').value = existing?.km ?? state.odometer.km;
@@ -428,8 +435,28 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
       save(); render(); toast('Ignored activities restored');
       return;
     }
+    const removeActivity = event.target.closest('[data-remove-activity]');
+    if (removeActivity) {
+      const item = state.schedules.find(schedule => schedule.id === removeActivity.dataset.removeActivity);
+      if (!item) return;
+      const dialog = document.querySelector('#confirmDialog');
+      document.querySelector('#confirmTitle').textContent = `Remove ${item.name}?`;
+      document.querySelector('#confirmText').textContent = 'This hides the activity from the maintenance table and upcoming reminders. Existing service history is kept, and you can restore the activity later.';
+      dialog.showModal();
+      dialog.addEventListener('close', () => {
+        if (dialog.returnValue !== 'confirm') return;
+        state.removedActivityIds = [...new Set([...state.removedActivityIds, item.id])];
+        state.ignoredTaskIds = state.ignoredTaskIds.filter(id => id !== item.id);
+        save(); render(); toast(`${item.name} removed`);
+      }, { once: true });
+      return;
+    }
     const complete = event.target.closest('[data-complete]'); if (complete) { const item = state.schedules.find(schedule => schedule.id === complete.dataset.complete); openRecord(item?.match[0]); }
     const edit = event.target.closest('.edit-record'); if (edit) openRecord(null, state.records.find(record => record.id === edit.dataset.id));
+  });
+  document.querySelector('#restoreRemoved').addEventListener('click', () => {
+    state.removedActivityIds = [];
+    save(); render(); toast('Removed activities restored');
   });
   document.addEventListener('change', event => {
     const note = event.target.closest('.activity-note');
