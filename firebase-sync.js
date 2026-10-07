@@ -35,6 +35,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const garageRef = doc(db, 'garages', 'chiang');
+const tlxRef = doc(db, 'garages', 'chiang', 'vehicles', 'tlx');
 
 setPersistence(auth, browserLocalPersistence).catch(() => {
   // The browser default still allows the user to sign in for this session.
@@ -51,6 +52,18 @@ export const watchGarage = (onData, onMissing, onError) => onSnapshot(
 );
 
 export const writeGarage = state => setDoc(garageRef, {
+  ...state,
+  schemaVersion: 1,
+  updatedAt: serverTimestamp()
+});
+
+export const watchTlx = (onData, onMissing, onError) => onSnapshot(
+  tlxRef,
+  snapshot => snapshot.exists() ? onData(snapshot.data()) : onMissing(),
+  onError
+);
+
+export const writeTlx = state => setDoc(tlxRef, {
   ...state,
   schemaVersion: 1,
   updatedAt: serverTimestamp()

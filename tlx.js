@@ -1,8 +1,8 @@
-import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGarage } from './firebase-sync.js?v=20261006-0001';
+import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } from './firebase-sync.js?v=20261006-0001';
 
 (() => {
   'use strict';
-  const STORAGE_KEY = 'venza-maintenance-v2';
+  const STORAGE_KEY = 'tlx-maintenance-v2';
   const today = new Date();
   const isoToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -21,27 +21,42 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   const byDateDesc = (a, b) => b.date.localeCompare(a.date);
 
   const seed = {
-    vehicle: { year: 2012, make: 'Toyota', model: 'Venza', drivetrain: 'AWD', engine: '2.7 L four-cylinder' },
-    odometer: { km: 0, date: isoToday },
-    records: [],
+    vehicle: { year: 2020, make: 'Acura', model: 'TLX A-Spec', drivetrain: 'FWD', engine: '2.4 L four-cylinder', inServiceDate: '2020-01-01' },
+    odometer: { km: 85000, date: '2026-10-06' },
+    records: [
+      { id: 'tlx-2026-10-filters', date: '2026-10-01', km: 85000, items: ['Cabin air filter', 'Engine air filter'], shop: '', cost: null, notes: 'Completed in October 2026. Date and odometer are approximate pending the final reading.' },
+      { id: 'tlx-2025-10-cabin', date: '2025-10-01', km: null, items: ['Cabin air filter'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day and odometer were not provided.' },
+      { id: 'tlx-2025-06-brakes', date: '2025-06-01', km: 65505, items: ['Brake service', 'Brake fluid'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day was not provided.' },
+      { id: 'tlx-2024-10-service', date: '2024-10-01', km: null, items: ['Cabin air filter', 'Engine air filter', 'Brake service'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day and odometer were not provided.' },
+      { id: 'tlx-2023-12-brakes', date: '2023-12-01', km: null, items: ['Brake service'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day and odometer were not provided.' },
+      { id: 'tlx-2023-11-filters', date: '2023-11-01', km: 40000, items: ['Cabin air filter', 'Engine air filter'], shop: '', cost: null, notes: 'Month recorded in source workbook; exact day was not provided.' }
+    ],
     planned: [],
-    activityNotes: {},
+    activityNotes: {
+      beltreplace: 'Estimated cost from workbook: $300.',
+      pcv: 'Estimated cost from workbook: $256.87.'
+    },
     ignoredTaskIds: [],
     schedules: [
-      { id: 'oil', name: 'Engine oil & filter', category: 'Engine', km: 8000, months: 6, match: ['Engine oil & filter', 'Oil change'], basis: 'Owner-selected interval', toyota: '8,000 km / 6 months' },
-      { id: 'tires', name: 'Tire rotation & inspection', category: 'Tires', km: 8000, months: 6, match: ['Tire rotation', 'New tires installed'], basis: 'Toyota Canada', toyota: '8,000 km / 6 months' },
-      { id: 'cabin', name: 'Cabin air filter', category: 'Filters', km: 16000, months: 12, match: ['Cabin air filter'], basis: 'Toyota Canada', toyota: '16,000 km / 12 months' },
-      { id: 'air', name: 'Engine air filter', category: 'Filters', km: 48000, months: 36, match: ['Engine air filter'], basis: 'User plan', toyota: '48,000 km / 36 months; inspect sooner in dust' },
-      { id: 'brakeinspect', name: 'Brake servicing', category: 'Brakes', km: null, months: 24, match: ['Brake service', 'Brake pads', 'Brake rotors'], basis: 'Owner-selected interval', toyota: 'Every 2 years' },
-      { id: 'brakefluid', name: 'Brake fluid', category: 'Fluids', km: 40000, months: 36, match: ['Brake fluid'], basis: 'Owner-selected interval', toyota: 'Every 40,000 km or 3 years' },
-      { id: 'coolant', name: 'Engine coolant', category: 'Fluids', km: 80000, months: 60, match: ['Engine coolant'], basis: 'Toyota after first replacement', toyota: 'First at 160,000 km / 10 years; then 80,000 km / 5 years' },
-      { id: 'atf', name: 'Automatic transmission fluid', category: 'Fluids', km: 96000, months: 72, match: ['Automatic transmission fluid'], basis: 'Owner-selected interval', toyota: 'Every 96,000 km or 6 years' },
-      { id: 'diff', name: 'AWD differential fluid', category: 'Fluids', km: 48000, months: null, match: ['AWD differential fluid'], basis: 'Owner-selected interval', toyota: 'Every 48,000 km' },
-      { id: 'shaft', name: 'Propeller shaft / driveline check', category: 'Driveline', km: 24000, months: 18, match: ['Propeller shaft check'], basis: 'Toyota guide', toyota: 'Inspect / re-torque every 24,000 km / 18 months' },
-      { id: 'belt', name: 'Accessory / serpentine drive belt inspection', category: 'Engine', km: 24000, months: 18, match: ['Drive belt inspection', 'Accessory / serpentine drive belt inspection', 'Serpentine belt'], basis: 'Toyota: initial 96,000 km / 72 mo, then every 24,000 km / 18 mo', toyota: 'Initial 96,000 km / 72 months; then 24,000 km / 18 months' },
-      { id: 'plugs', name: 'Spark plugs', category: 'Engine', km: 192000, months: null, match: ['Spark plugs'], basis: 'Toyota guide', toyota: '192,000 km / 12 years' },
-      { id: 'battery', name: 'Battery', category: 'Electrical', km: null, months: 60, match: ['Battery replaced', 'Battery test'], basis: 'Owner-selected interval', toyota: 'Replace every 5 years' },
-      { id: 'suspension', name: 'Suspension & steering inspection', category: 'Chassis', km: 24000, months: 18, match: ['Suspension & steering inspection'], basis: 'User plan', toyota: 'Inspect every 24,000 km / 18 months' }
+      { id: 'oil', name: 'Engine oil & filter', category: 'Routine', km: 8000, months: 12, firstKm: 8000, firstMonths: 12, match: ['Engine oil & filter', 'Oil change'], basis: 'Workbook schedule', toyota: 'Every 8,000 km or 12 months' },
+      { id: 'tires', name: 'Tire rotation & inspection', category: 'Chassis', km: 8000, months: null, firstKm: 8000, match: ['Tire rotation', 'Tire inspection', 'New tires installed'], basis: 'Workbook schedule', toyota: 'Rotate every 8,000 km; replace below 2/32 in tread' },
+      { id: 'alignment', name: 'Alignment check', category: 'Chassis', km: null, months: 12, firstMonths: 12, match: ['Alignment check', 'Wheel alignment'], basis: 'Workbook schedule', toyota: 'Annually or if uneven tire wear occurs' },
+      { id: 'suspension', name: 'Suspension & steering check', category: 'Chassis', km: 48000, months: null, firstKm: 48000, match: ['Suspension & steering check', 'Suspension & steering inspection'], basis: 'Workbook schedule', toyota: 'Inspect every 48,000 km' },
+      { id: 'shocks', name: 'Shocks & struts', category: 'Chassis', km: 48000, months: null, firstKm: 48000, match: ['Shocks & struts', 'Shocks and struts'], basis: 'Workbook schedule', toyota: 'Inspect every 48,000 km; replace as needed' },
+      { id: 'cabin', name: 'Cabin air filter', category: 'Filters', km: 24000, months: 24, firstKm: 24000, firstMonths: 24, match: ['Cabin air filter', 'Cabin Filter'], basis: 'Workbook schedule', toyota: 'Every 24,000 km or 2 years' },
+      { id: 'air', name: 'Engine air filter', category: 'Filters', km: 32000, months: 24, firstKm: 32000, firstMonths: 24, match: ['Engine air filter', 'Engine Filter'], basis: 'Workbook schedule', toyota: 'Every 32,000 km or 2 years' },
+      { id: 'brakefluid', name: 'Brake fluid', category: 'Brakes', km: null, months: 36, firstMonths: 36, match: ['Brake fluid'], basis: 'Workbook and Acura guide', toyota: 'Every 3 years, regardless of mileage' },
+      { id: 'brakeinspect', name: 'Brake system inspection', category: 'Brakes', km: 8000, months: null, firstKm: 8000, match: ['Brake service', 'Brake system inspection'], basis: 'Workbook schedule', toyota: 'Every 8,000 km' },
+      { id: 'brakewear', name: 'Brake pads & rotors', category: 'Brakes', km: 8000, months: null, firstKm: 8000, match: ['Brake service', 'Brake pads', 'Brake rotors', 'Brake pads & rotors'], basis: 'Workbook schedule', toyota: 'Inspect every 8,000 km; replace as needed' },
+      { id: 'battery', name: 'Battery', category: 'Electrical', km: null, months: 60, firstMonths: 60, match: ['Battery replaced', 'Battery test', 'Battery'], basis: 'Workbook schedule', toyota: 'Check every service; replace every 4–6 years' },
+      { id: 'belt', name: 'Drive belt (serpentine belt)', category: 'Engine', km: 96000, months: null, firstKm: 96000, match: ['Drive belt inspection', 'Drive belt (serpentine belt)', 'Serpentine belt'], basis: 'Workbook schedule', toyota: 'Inspect every 96,000 km; replace if worn' },
+      { id: 'beltreplace', name: 'Serpentine belt replacement', category: 'Engine', km: 120000, months: 84, firstKm: 120000, firstMonths: 84, match: ['Serpentine belt replacement', 'Replace serpentine belt'], basis: 'Owner workbook', toyota: 'Every 7–10 years or 120,000–200,000 km' },
+      { id: 'coolant', name: 'Engine coolant', category: 'Engine', km: 80000, months: 60, firstKm: 160000, firstMonths: 120, match: ['Engine coolant'], basis: 'Workbook schedule', toyota: 'First at 160,000 km or 10 years; then every 80,000 km or 5 years' },
+      { id: 'plugs', name: 'Spark plugs', category: 'Engine', km: 160000, months: null, firstKm: 160000, match: ['Spark plugs'], basis: 'Workbook schedule', toyota: 'Every 160,000 km' },
+      { id: 'pcv', name: 'PCV valve', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['PCV valve', 'PCV valve replacement', 'Replace PCV valve'], basis: 'Owner workbook', toyota: 'Inspect during routine service; replace if faulty' },
+      { id: 'exhaust', name: 'Exhaust system check', category: 'Engine', km: 48000, months: null, firstKm: 48000, match: ['Exhaust system check', 'Exhaust inspection'], basis: 'Workbook schedule', toyota: 'Every 48,000 km' },
+      { id: 'atf', name: 'Automatic transmission fluid', category: 'Transmission', km: 96000, months: null, firstKm: 96000, match: ['Automatic transmission fluid', 'Transmission fluid'], basis: 'Workbook schedule', toyota: 'Inspect every 96,000 km; service every 48,000 km under severe conditions' },
+      { id: 'washer', name: 'Windshield washer fluid', category: 'Routine', km: null, months: 1, firstMonths: 1, match: ['Windshield washer fluid'], basis: 'Workbook schedule', toyota: 'Check monthly and refill as needed' }
     ]
   };
 
@@ -108,7 +123,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     clearTimeout(cloudWriteTimer);
     cloudWriteTimer = setTimeout(async () => {
       try {
-        await writeGarage(cloudState());
+        await writeTlx(cloudState());
         setSyncStatus('Saved online', 'saved');
       } catch (error) {
         console.error(error);
@@ -134,16 +149,16 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     </section>
     <main class="shell" id="appShell" hidden>
       <header class="topbar">
-        <div class="identity"><div class="mark" aria-hidden="true"><svg viewBox="0 0 64 40" fill="none"><path d="M9 27h46l-5-15H20L9 27Z" fill="#F3A447"/><path d="M19 12 27 3h18l5 9" stroke="#F5F2EA" stroke-width="4" stroke-linejoin="round"/><circle cx="20" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/><circle cx="46" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/></svg></div><div><div class="eyebrow">Personal service record</div><h1>2012 Toyota Venza</h1></div></div>
+        <div class="identity"><div class="mark" aria-hidden="true"><svg viewBox="0 0 64 40" fill="none"><path d="M9 27h46l-5-15H20L9 27Z" fill="#F3A447"/><path d="M19 12 27 3h18l5 9" stroke="#F5F2EA" stroke-width="4" stroke-linejoin="round"/><circle cx="20" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/><circle cx="46" cy="29" r="7" fill="#172232" stroke="#F5F2EA" stroke-width="4"/></svg></div><div><div class="eyebrow">Personal service record</div><h1>2020 Acura TLX A-Spec</h1></div></div>
         <div class="topbar-meta"><span class="sync-status" id="syncStatus">Connecting…</span><span class="account-email" id="accountEmail"></span><button class="signout-btn" id="signOut" type="button">Sign out</button><a class="back-link" href="index.html">All vehicles</a><div class="date" id="today"></div></div>
       </header>
       <section id="overview">
-        <div class="grid"><section class="stack"><article class="card odometer"><img class="vehicle-image" src="assets/gray-2012-venza.png" alt="Grey 2012 Toyota Venza"><div class="odo-head"><div><div class="odo-label">Current odometer</div><div class="odo-reading"><strong id="odometerValue"></strong><span>km</span></div><div class="odo-note">AWD · 2.7 L four-cylinder · updated <span id="odometerDate"></span></div></div><button class="edit-odo" id="editOdometer">Update reading</button></div><div class="meters"><div class="meter"><b id="attentionCount"></b><span>need attention</span></div><div class="meter"><b id="nextDistance"></b><span>km to next item</span></div><div class="meter"><b id="recordCount"></b><span>service events</span></div></div></article>
-        <article class="card section"><div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><a class="link-btn" href="#maintenance-history">Complete history</a></div><div class="task-list" id="taskList"></div><div class="ignored-controls" id="ignoredControls"></div><div class="source-note"><b>Schedule basis:</b> your workbook, Toyota’s model-specific guide, and Toyota Canada’s service rhythm. The earliest time or distance limit wins.</div></article></section>
+        <div class="grid"><section class="stack"><article class="card odometer"><img class="vehicle-image" src="assets/white-2020-acura-tlx-aspec.png" alt="White 2020 Acura TLX A-Spec"><div class="odo-head"><div><div class="odo-label">Current odometer</div><div class="odo-reading"><strong id="odometerValue"></strong><span>km</span></div><div class="odo-note">FWD · 2.4 L four-cylinder · updated <span id="odometerDate"></span></div></div><button class="edit-odo" id="editOdometer">Update reading</button></div><div class="meters"><div class="meter"><b id="attentionCount"></b><span>need attention</span></div><div class="meter"><b id="nextDistance"></b><span>km to next item</span></div><div class="meter"><b id="recordCount"></b><span>service events</span></div></div></article>
+        <article class="card section"><div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><a class="link-btn" href="#maintenance-history">Complete history</a></div><div class="task-list" id="taskList"></div><div class="ignored-controls" id="ignoredControls"></div><div class="source-note"><b>Schedule basis:</b> your workbook and Acura’s Maintenance Minder guidance. The earliest time or distance limit wins.</div></article></section>
         <aside class="card history"><div class="section-head"><div><h2>Recent history</h2><p>Latest completed work from your records.</p></div><a class="link-btn" href="#maintenance-history">Full table</a></div><div class="timeline" id="timeline"></div></aside></div>
       </section>
-      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Toyota guidance and the two latest matching service actions.</p></div><button class="primary-action" id="addRecord">Log service</button></div><div class="activity-history" id="activityHistory"></div></section>
-      <section class="page-section support-strip"><div><h2>Data & sources</h2><p>Your updates are saved online and synchronized across signed-in devices.</p></div><div class="data-actions"><button class="btn primary" id="exportData">Export backup</button><label class="btn" for="importData">Import backup</label><input class="file-input" id="importData" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">Reset maintenance data</button></div><div class="source-links compact"><a class="source-link" href="https://www.toyota.ca/en/owners/service/" target="_blank" rel="noreferrer">Toyota Canada service guidance</a><a class="source-link" href="https://assets.sia.toyota.com/publications/en/omms-s/T-MMS-12Venza/pdf/2012_Toyota_Venza_WMG.pdf" target="_blank" rel="noreferrer">2012 Venza maintenance guide</a></div></section>
+      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Acura guidance and the two latest matching service actions.</p></div><button class="primary-action" id="addRecord">Log service</button></div><div class="activity-history" id="activityHistory"></div></section>
+      <section class="page-section support-strip"><div><h2>Data & sources</h2><p>Your updates are saved online and synchronized across signed-in devices.</p></div><div class="data-actions"><button class="btn primary" id="exportData">Export backup</button><label class="btn" for="importData">Import backup</label><input class="file-input" id="importData" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">Reset maintenance data</button></div><div class="source-links compact"><a class="source-link" href="https://www.acura.ca/en/service-parts/maintenance-schedules" target="_blank" rel="noreferrer">Acura Canada maintenance schedules</a><a class="source-link" href="https://owners.acura.com/utility/download?path=/static/pdfs/2020/TLX/2020_TLX_Maintenance_Minder.pdf" target="_blank" rel="noreferrer">2020 TLX Maintenance Minder guide</a></div></section>
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
     <dialog id="recordDialog"><form method="dialog" class="modal" id="recordForm"><h2 id="recordDialogTitle">Log service</h2><p>Save the date and odometer reading for completed maintenance.</p><div class="form-grid"><div class="field"><label for="recordDate">Service date</label><input id="recordDate" type="date" required></div><div class="field"><label for="recordKm">Odometer (km)</label><input id="recordKm" type="number" min="0" step="1" inputmode="numeric" required></div><div class="field wide"><label>Work completed</label><div class="checks" id="itemChecks"></div></div><div class="field wide"><label for="customItem">Other item</label><input id="customItem" type="text" placeholder="e.g. Wiper blades"></div><div class="field"><label for="recordShop">Shop</label><input id="recordShop" type="text" placeholder="Optional"></div><div class="field"><label for="recordCost">Cost (CAD)</label><input id="recordCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional"></div><div class="field wide"><label for="recordNotes">Notes</label><textarea id="recordNotes" placeholder="Parts used, observations, follow-up…"></textarea></div></div><div class="modal-actions"><button class="btn" type="button" id="cancelRecord">Cancel</button><button class="btn primary" value="save">Save service</button></div></form></dialog>
@@ -166,14 +181,14 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   async function startCloudSync() {
     setSyncStatus('Loading online data…');
     stopGarageWatch?.();
-    stopGarageWatch = watchGarage(
+    stopGarageWatch = watchTlx(
       async data => {
         const onlineState = normalize(data);
         if (!onlineState.records.length && state.records.length) {
           cloudReady = true;
           setSyncStatus('Moving saved history online…');
           try {
-            await writeGarage(cloudState());
+            await writeTlx(cloudState());
             setSyncStatus('Saved online', 'saved');
           } catch (error) {
             console.error(error);
@@ -190,7 +205,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
       async () => {
         try {
           setSyncStatus(state.records.length ? 'Moving saved history online…' : 'Creating online garage…');
-          await writeGarage(cloudState());
+          await writeTlx(cloudState());
           cloudReady = true;
           setSyncStatus('Saved online', 'saved');
         } catch (error) {
@@ -267,21 +282,27 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   const latestFor = schedule => historyFor(schedule)[0] || null;
   const plannedFor = schedule => [...state.planned].filter(record => record.date >= isoToday && record.items.some(item => schedule.match.includes(item))).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
   const scheduleGroups = [
-    { name: 'Brakes', note: 'Friction components and hydraulic fluid', ids: ['brakefluid', 'brakeinspect'] },
+    { name: 'Brakes', note: 'Friction components, inspections and hydraulic fluid', ids: ['brakefluid', 'brakeinspect', 'brakewear'] },
     { name: 'Electrical', note: 'Starting and charging system', ids: ['battery'] },
-    { name: 'Engine, ignition & cooling', note: 'Engine reliability and temperature control', ids: ['belt', 'coolant', 'plugs'] },
+    { name: 'Engine, ignition & cooling', note: 'Engine reliability, emissions and temperature control', ids: ['belt', 'beltreplace', 'coolant', 'exhaust', 'pcv', 'plugs'] },
     { name: 'Filters & cabin air', note: 'Airflow for the engine and cabin', ids: ['cabin', 'air'] },
-    { name: 'Routine service', note: 'Regular inspection and lubrication', ids: ['oil'] },
-    { name: 'Tires, suspension & steering', note: 'Road contact, alignment and chassis', ids: ['suspension', 'tires'] },
-    { name: 'Transmission & AWD driveline', note: 'Transmission, differential and propeller shaft', ids: ['atf', 'diff', 'shaft'] }
+    { name: 'Routine service', note: 'Regular fluid checks and lubrication', ids: ['oil', 'washer'] },
+    { name: 'Tires, suspension & steering', note: 'Road contact, alignment and chassis', ids: ['alignment', 'shocks', 'suspension', 'tires'] },
+    { name: 'Transmission', note: 'Eight-speed dual-clutch transmission', ids: ['atf'] }
   ];
   function statusFor(schedule) {
     const last = latestFor(schedule);
     const planned = plannedFor(schedule);
     if (planned) return { kind: 'planned', label: `Planned ${fmtDate(planned.date, { month: 'short', year: 'numeric' })}`, detail: 'Already listed in your workbook', last };
-    if (!last) return { kind: 'overdue', label: 'No record', detail: 'Add the last service date and odometer', last: null };
-    const kmLeft = schedule.km && last.km != null ? last.km + schedule.km - state.odometer.km : null;
-    const monthsLeft = schedule.months ? schedule.months - monthDiff(last.date, isoToday) : null;
+    if (schedule.conditionOnly) return { kind: 'ok', label: 'Condition based', detail: 'Inspect during routine service', last };
+    const kmLeft = last
+      ? (schedule.km && last.km != null ? last.km + schedule.km - state.odometer.km : null)
+      : ((schedule.firstKm ?? schedule.km) ? (schedule.firstKm ?? schedule.km) - state.odometer.km : null);
+    const baselineDate = state.vehicle.inServiceDate || `${state.vehicle.year}-01-01`;
+    const monthsLeft = last
+      ? (schedule.months ? schedule.months - monthDiff(last.date, isoToday) : null)
+      : ((schedule.firstMonths ?? schedule.months) ? (schedule.firstMonths ?? schedule.months) - monthDiff(baselineDate, isoToday) : null);
+    if (!last && kmLeft == null && monthsLeft == null) return { kind: 'overdue', label: 'No record', detail: 'Add the last service date and odometer', last: null };
     if ((kmLeft != null && kmLeft <= 0) || (monthsLeft != null && monthsLeft <= 0)) {
       const reasons = [];
       if (kmLeft != null && kmLeft <= 0) reasons.push(`${fmtKm(Math.abs(kmLeft))} km past`);
@@ -313,9 +334,12 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     const last = latestFor(schedule);
     const planned = plannedFor(schedule);
     if (planned) return { main: fmtDate(planned.date), sub: 'Planned in your workbook' };
-    if (!last) return { main: 'Needs baseline', sub: 'Enter last date and odometer' };
-    const dueDate = schedule.months ? addMonths(last.date, schedule.months) : null;
-    const dueKm = schedule.km && last.km != null ? last.km + schedule.km : null;
+    const dueDate = last
+      ? (schedule.months ? addMonths(last.date, schedule.months) : null)
+      : ((schedule.firstMonths ?? schedule.months) ? addMonths(state.vehicle.inServiceDate || `${state.vehicle.year}-01-01`, schedule.firstMonths ?? schedule.months) : null);
+    const dueKm = last
+      ? (schedule.km && last.km != null ? last.km + schedule.km : null)
+      : (schedule.firstKm ?? schedule.km ?? null);
     if (dueDate) return { main: fmtDate(dueDate), sub: dueKm != null ? `or ${fmtKm(dueKm)} km` : 'Time based' };
     if (dueKm != null) return { main: `${fmtKm(dueKm)} km`, sub: 'Mileage based' };
     return { main: 'Inspection based', sub: 'No fixed next date' };
@@ -324,9 +348,12 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     const last = latestFor(schedule);
     const planned = plannedFor(schedule);
     if (planned) return `Next approx.: ${fmtDate(planned.date)}`;
-    if (!last) return 'Next approx.: add last service date';
-    const dueDate = schedule.months ? addMonths(last.date, schedule.months) : null;
-    const dueKm = schedule.km && last.km != null ? last.km + schedule.km : null;
+    const dueDate = last
+      ? (schedule.months ? addMonths(last.date, schedule.months) : null)
+      : ((schedule.firstMonths ?? schedule.months) ? addMonths(state.vehicle.inServiceDate || `${state.vehicle.year}-01-01`, schedule.firstMonths ?? schedule.months) : null);
+    const dueKm = last
+      ? (schedule.km && last.km != null ? last.km + schedule.km : null)
+      : (schedule.firstKm ?? schedule.km ?? null);
     if (dueDate) return `Next approx.: ${fmtDate(dueDate)}${dueKm != null ? ` · or ${fmtKm(dueKm)} km` : ''}`;
     if (dueKm != null) {
       const estimatedMonths = Math.max(0, Math.round(((dueKm - state.odometer.km) / 16000) * 12));
@@ -439,14 +466,14 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     toast('Note saved');
   });
 
-  document.querySelector('#exportData').addEventListener('click', () => { const blob = new Blob([JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `venza-maintenance-backup-${isoToday}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); toast('Backup exported'); });
-  document.querySelector('#importData').addEventListener('change', async event => { const file = event.target.files?.[0]; if (!file) return; try { const incoming = JSON.parse(await file.text()); if (!incoming.odometer || !Array.isArray(incoming.records)) throw new Error(); state = normalize(incoming); save(); render(); toast('Backup restored and queued for online sync'); } catch { toast('That file is not a valid Venza backup'); } finally { event.target.value = ''; } });
+  document.querySelector('#exportData').addEventListener('click', () => { const blob = new Blob([JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `tlx-maintenance-backup-${isoToday}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); toast('Backup exported'); });
+  document.querySelector('#importData').addEventListener('change', async event => { const file = event.target.files?.[0]; if (!file) return; try { const incoming = JSON.parse(await file.text()); if (!incoming.odometer || !Array.isArray(incoming.records)) throw new Error(); state = normalize(incoming); save(); render(); toast('Backup restored and queued for online sync'); } catch { toast('That file is not a valid TLX backup'); } finally { event.target.value = ''; } });
   document.querySelector('#resetData').addEventListener('click', () => { const dialog = document.querySelector('#confirmDialog'); document.querySelector('#confirmTitle').textContent = 'Reset all maintenance data?'; document.querySelector('#confirmText').textContent = 'The online service history, odometer and notes will be cleared. Export a backup first if needed.'; dialog.showModal(); dialog.addEventListener('close', () => { if (dialog.returnValue === 'confirm') { state = normalize(seed); save(); render(); toast('Maintenance data reset'); } }, { once: true }); });
 
   if (document.modelContext?.registerTool) {
     try {
-      document.modelContext.registerTool({ name: 'update_odometer', title: 'Update Venza odometer', description: 'Update the current odometer and refresh maintenance reminders.', inputSchema: { type: 'object', properties: { km: { type: 'number', minimum: 0 }, date: { type: 'string' } }, required: ['km'], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: ({ km, date }) => { if (!Number.isFinite(km) || km < 0) throw new Error('Odometer must be zero or greater.'); if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Date must use YYYY-MM-DD.'); state.odometer = { km: Math.round(km), date: date || isoToday }; save(); render(); return { odometer: state.odometer }; } });
-      document.modelContext.registerTool({ name: 'read_maintenance_status', title: 'Read Venza maintenance status', description: 'Read the current odometer and maintenance reminders.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: false }, execute: () => ({ odometer: state.odometer, items: ranked().map(item => ({ name: item.name, status: item.status.label, detail: item.status.detail })) }) });
+      document.modelContext.registerTool({ name: 'update_tlx_odometer', title: 'Update TLX odometer', description: 'Update the current odometer and refresh maintenance reminders.', inputSchema: { type: 'object', properties: { km: { type: 'number', minimum: 0 }, date: { type: 'string' } }, required: ['km'], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, execute: ({ km, date }) => { if (!Number.isFinite(km) || km < 0) throw new Error('Odometer must be zero or greater.'); if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Date must use YYYY-MM-DD.'); state.odometer = { km: Math.round(km), date: date || isoToday }; save(); render(); return { odometer: state.odometer }; } });
+      document.modelContext.registerTool({ name: 'read_tlx_maintenance_status', title: 'Read TLX maintenance status', description: 'Read the current odometer and maintenance reminders.', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: false }, execute: () => ({ odometer: state.odometer, items: ranked().map(item => ({ name: item.name, status: item.status.label, detail: item.status.detail })) }) });
     } catch { /* Browsers without WebMCP simply use the visible interface. */ }
   }
   render();

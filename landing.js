@@ -1,4 +1,4 @@
-import { isAuthorizedUser, signIn, signOutUser, watchAuth } from './firebase-sync.js?v=20260929-0002';
+import { isAuthorizedUser, signIn, signOutUser, watchAuth } from './firebase-sync.js?v=20261006-0001';
 
 const authGate = document.querySelector('#landingAuthGate');
 const garageShell = document.querySelector('#garageShell');
