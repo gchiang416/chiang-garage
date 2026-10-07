@@ -34,7 +34,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     ],
     planned: [],
     activityNotes: {
-      beltreplace: 'Estimated cost from workbook: $300.',
+      belt: 'Estimated replacement cost from workbook: $300.',
       pcv: 'Estimated cost from workbook: $256.87.'
     },
     ignoredTaskIds: [],
@@ -51,8 +51,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       { id: 'brakeinspect', name: 'Brake servicing (including lubrication)', category: 'Brakes', km: null, months: 24, firstMonths: 24, match: ['Brake service', 'Brake system inspection', 'Brake servicing (including lubrication)'], basis: 'Owner-selected interval informed by Acura Maintenance Minder B', toyota: 'Every 2 years; clean and lubricate caliper pins and brake hardware' },
       { id: 'brakewear', name: 'Brake pads & rotors', category: 'Brakes', km: 8000, months: null, firstKm: 8000, match: ['Brake service', 'Brake pads', 'Brake rotors', 'Brake pads & rotors'], basis: 'Workbook schedule', toyota: 'Inspect every 8,000 km; replace as needed' },
       { id: 'battery', name: 'Battery', category: 'Electrical', km: null, months: 60, firstMonths: 60, match: ['Battery replaced', 'Battery test', 'Battery'], basis: 'Workbook schedule', toyota: 'Check every service; replace every 4–6 years' },
-      { id: 'belt', name: 'Drive belt (serpentine belt)', category: 'Engine', km: 96000, months: null, firstKm: 96000, match: ['Drive belt inspection', 'Drive belt (serpentine belt)', 'Serpentine belt'], basis: 'Workbook schedule', toyota: 'Inspect every 96,000 km; replace if worn' },
-      { id: 'beltreplace', name: 'Serpentine belt replacement', category: 'Engine', km: 120000, months: 84, firstKm: 120000, firstMonths: 84, match: ['Serpentine belt replacement', 'Replace serpentine belt'], basis: 'Owner workbook', toyota: 'Every 7–10 years or 120,000–200,000 km' },
+      { id: 'belt', name: 'Drive belt (serpentine belt)', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['Drive belt inspection', 'Drive belt (serpentine belt)', 'Serpentine belt', 'Serpentine belt replacement', 'Replace serpentine belt'], basis: 'Acura Maintenance Minder code 2', toyota: 'Inspect when Maintenance Minder code 2 appears; replace if worn, damaged or deteriorated' },
       { id: 'coolant', name: 'Engine coolant', category: 'Engine', km: 80000, months: 60, firstKm: 160000, firstMonths: 120, match: ['Engine coolant'], basis: 'Workbook schedule', toyota: 'First at 160,000 km or 10 years; then every 80,000 km or 5 years' },
       { id: 'plugs', name: 'Spark plugs', category: 'Engine', km: 160000, months: null, firstKm: 160000, match: ['Spark plugs'], basis: 'Workbook schedule', toyota: 'Every 160,000 km' },
       { id: 'pcv', name: 'PCV valve', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['PCV valve', 'PCV valve replacement', 'Replace PCV valve'], basis: 'Owner workbook', toyota: 'Inspect during routine service; replace if faulty' },
@@ -87,7 +86,11 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       records,
       schedules: clone(seed.schedules),
       planned: reconcilePlanned(records, incoming?.planned || []),
-      activityNotes: incoming?.activityNotes || {},
+      activityNotes: {
+        ...clone(seed.activityNotes),
+        ...(incoming?.activityNotes || {}),
+        belt: incoming?.activityNotes?.belt || incoming?.activityNotes?.beltreplace || seed.activityNotes.belt
+      },
       ignoredTaskIds: incoming?.ignoredTaskIds || [],
       removedActivityIds: incoming?.removedActivityIds || []
     };
@@ -302,7 +305,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
   const scheduleGroups = [
     { name: 'Brakes', note: 'Friction components, inspections and hydraulic fluid', ids: ['brakefluid', 'brakeinspect', 'brakewear'] },
     { name: 'Electrical', note: 'Starting and charging system', ids: ['battery'] },
-    { name: 'Engine, ignition & cooling', note: 'Engine reliability, emissions and temperature control', ids: ['belt', 'beltreplace', 'coolant', 'exhaust', 'pcv', 'plugs'] },
+    { name: 'Engine, ignition & cooling', note: 'Engine reliability, emissions and temperature control', ids: ['belt', 'coolant', 'exhaust', 'pcv', 'plugs'] },
     { name: 'Filters & cabin air', note: 'Airflow for the engine and cabin', ids: ['cabin', 'air'] },
     { name: 'Routine service', note: 'Regular fluid checks and lubrication', ids: ['oil', 'washer'] },
     { name: 'Tires, suspension & steering', note: 'Road contact, alignment and chassis', ids: ['alignment', 'shocks', 'suspension', 'tires'] },
