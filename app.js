@@ -34,6 +34,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
       { id: 'cabin', name: 'Cabin air filter', category: 'Filters', km: 16000, months: 12, match: ['Cabin air filter'], basis: 'Toyota Canada', toyota: '16,000 km / 12 months' },
       { id: 'air', name: 'Engine air filter', category: 'Filters', km: 48000, months: 36, match: ['Engine air filter'], basis: 'User plan', toyota: '48,000 km / 36 months; inspect sooner in dust' },
       { id: 'brakeinspect', name: 'Brake servicing', category: 'Brakes', km: null, months: 24, match: ['Brake service', 'Brake pads', 'Brake rotors'], basis: 'Owner-selected interval', toyota: 'Every 2 years' },
+      { id: 'brakewear', name: 'Brake pads & rotors', category: 'Brakes', km: null, months: null, conditionOnly: true, match: ['Brake service', 'Brake pads', 'Brake rotors', 'Brake pads & rotors'], basis: 'Condition-based wear item', toyota: 'Inspect during routine service; replace based on wear and condition' },
       { id: 'brakefluid', name: 'Brake fluid', category: 'Fluids', km: 40000, months: 36, match: ['Brake fluid'], basis: 'Owner-selected interval', toyota: 'Every 40,000 km or 3 years' },
       { id: 'coolant', name: 'Engine coolant', category: 'Fluids', km: 80000, months: 60, match: ['Engine coolant'], basis: 'Toyota after first replacement', toyota: 'First at 160,000 km / 10 years; then 80,000 km / 5 years' },
       { id: 'atf', name: 'Automatic transmission fluid', category: 'Fluids', km: 96000, months: 72, match: ['Automatic transmission fluid'], basis: 'Owner-selected interval', toyota: 'Every 96,000 km or 6 years' },
@@ -145,7 +146,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
         <article class="card section"><div class="section-head"><div><h2>What’s next</h2><p>Based on your mileage, dates and saved service records.</p></div><a class="link-btn" href="#maintenance-history">Complete history</a></div><div class="task-list" id="taskList"></div><div class="ignored-controls" id="ignoredControls"></div><div class="source-note"><b>Schedule basis:</b> your workbook, Toyota’s model-specific guide, and Toyota Canada’s service rhythm. The earliest time or distance limit wins.</div></article></section>
         <aside class="card history"><div class="section-head"><div><h2>Recent history</h2><p>Latest completed work from your records.</p></div><a class="link-btn" href="#maintenance-history">Full table</a></div><div class="timeline" id="timeline"></div></aside></div>
       </section>
-      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Toyota guidance and the two latest matching service actions.</p></div><div class="history-actions"><button class="btn" id="restoreRemoved" type="button" hidden></button><button class="primary-action" id="addRecord">Log service</button></div></div><div class="activity-history" id="activityHistory"></div></section>
+      <section class="page-section" id="maintenance-history"><div class="toolbar"><div class="page-title"><h2>Complete maintenance history</h2><p>Grouped by vehicle system, with Toyota guidance and the two latest matching service actions.</p></div><div class="history-actions"><button class="btn" id="restoreRemoved" type="button" hidden></button><button class="primary-action" id="addRecord">Add service / update</button></div></div><div class="activity-history" id="activityHistory"></div></section>
       <section class="page-section support-strip"><div><h2>Data & sources</h2><p>Your updates are saved online and synchronized across signed-in devices.</p></div><div class="data-actions"><button class="btn primary" id="exportData">Export backup</button><label class="btn" for="importData">Import backup</label><input class="file-input" id="importData" type="file" accept="application/json,.json"><button class="btn danger" id="resetData">Reset maintenance data</button></div><div class="source-links compact"><a class="source-link" href="https://www.toyota.ca/en/owners/service/" target="_blank" rel="noreferrer">Toyota Canada service guidance</a><a class="source-link" href="https://assets.sia.toyota.com/publications/en/omms-s/T-MMS-12Venza/pdf/2012_Toyota_Venza_WMG.pdf" target="_blank" rel="noreferrer">2012 Venza maintenance guide</a></div></section>
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
@@ -270,7 +271,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   const latestFor = schedule => historyFor(schedule)[0] || null;
   const plannedFor = schedule => [...state.planned].filter(record => record.date >= isoToday && record.items.some(item => schedule.match.includes(item))).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
   const scheduleGroups = [
-    { name: 'Brakes', note: 'Friction components and hydraulic fluid', ids: ['brakefluid', 'brakeinspect'] },
+    { name: 'Brakes', note: 'Friction components and hydraulic fluid', ids: ['brakefluid', 'brakeinspect', 'brakewear'] },
     { name: 'Electrical', note: 'Starting and charging system', ids: ['battery'] },
     { name: 'Engine, ignition & cooling', note: 'Engine reliability and temperature control', ids: ['belt', 'coolant', 'plugs'] },
     { name: 'Filters & cabin air', note: 'Airflow for the engine and cabin', ids: ['cabin', 'air'] },
@@ -280,6 +281,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   ];
   function statusFor(schedule) {
     const last = latestFor(schedule);
+    if (schedule.conditionOnly) return { kind: 'ok', label: 'Condition based', detail: 'Inspect during routine service', last };
     const planned = plannedFor(schedule);
     if (planned) return { kind: 'planned', label: `Planned ${fmtDate(planned.date, { month: 'short', year: 'numeric' })}`, detail: 'Already listed in your workbook', last };
     if (!last) return { kind: 'overdue', label: 'No record', detail: 'Add the last service date and odometer', last: null };
@@ -395,7 +397,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
   let editingId = null;
   function openRecord(preselect, existing) {
     editingId = existing?.id || null;
-    document.querySelector('#recordDialogTitle').textContent = existing ? 'Update service record' : preselect ? `Update ${preselect}` : 'Log service';
+    document.querySelector('#recordDialogTitle').textContent = existing ? 'Update service record' : preselect ? `Update ${preselect}` : 'Add service / update';
     const names = [...new Set(state.schedules.filter(item => !state.removedActivityIds.includes(item.id)).map(item => item.match[0]))];
     document.querySelector('#itemChecks').innerHTML = names.map(name => `<label class="check"><input type="checkbox" name="serviceItem" value="${esc(name)}" ${(existing?.items.includes(name) || preselect === name) ? 'checked' : ''}><span>${esc(name)}</span></label>`).join('');
     document.querySelector('#recordDate').value = existing?.date || isoToday;
