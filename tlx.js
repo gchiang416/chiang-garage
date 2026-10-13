@@ -171,6 +171,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
     <dialog id="recordDialog"><form method="dialog" class="modal" id="recordForm"><h2 id="recordDialogTitle">Log service</h2><p>Save the date and odometer reading for completed maintenance.</p><div class="form-grid"><div class="field"><label for="recordDate">Service date</label><input id="recordDate" type="date" required></div><div class="field"><label for="recordKm">Odometer (km)</label><input id="recordKm" type="number" min="0" step="1" inputmode="numeric" required></div><div class="field wide"><label>Work completed</label><div class="checks" id="itemChecks"></div></div><div class="field wide"><label for="customItem">Other item</label><input id="customItem" type="text" placeholder="e.g. Wiper blades"></div><div class="field"><label for="recordShop">Shop</label><input id="recordShop" type="text" placeholder="Optional"></div><div class="field"><label for="recordCost">Cost (CAD)</label><input id="recordCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional"></div><div class="field wide"><label for="recordNotes">Notes</label><textarea id="recordNotes" placeholder="Parts used, observations, follow-up…"></textarea></div></div><div class="modal-actions"><button class="btn" type="button" id="cancelRecord">Cancel</button><button class="btn primary" value="save">Save service</button></div></form></dialog>
+    <dialog id="historyPickerDialog"><div class="modal history-picker-modal"><h2 id="historyPickerTitle">Modify service history</h2><p>Select the saved action you want to update.</p><div class="history-picker-options" id="historyPickerOptions"></div><p class="history-picker-note">This opens the complete service record. Other maintenance saved during the same visit will be shown too.</p><div class="modal-actions"><button class="btn" type="button" id="cancelHistoryPicker">Cancel</button></div></div></dialog>
     <dialog id="confirmDialog"><form method="dialog" class="modal"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="modal-actions"><button class="btn" value="cancel">Cancel</button><button class="btn danger" value="confirm">Confirm</button></div></form></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
@@ -424,7 +425,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
         const history = historyFor(item);
         const last = history[0] || null;
         const previous = history[1] || null;
-        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><div class="activity-actions"><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button><button class="remove-activity" type="button" data-remove-activity="${esc(item.id)}">Remove</button></div></div>`;
+        return `<div class="activity-row ${item.status.kind}"><div class="activity-name" data-label="Maintenance activity">${esc(item.name)}<span class="badge">${esc(item.status.label)}</span></div><div class="activity-cell" data-label="Suggested interval"><b>${esc(item.toyota)}</b><small>${esc(approximateNextText(item))}</small></div><div class="activity-cell" data-label="Latest action">${serviceCell(last, item)}</div><div class="activity-cell" data-label="Previous action">${serviceCell(previous, item)}</div><div class="activity-cell note-cell" data-label="Notes"><textarea class="activity-note" data-note-id="${esc(item.id)}" aria-label="Notes for ${esc(item.name)}" placeholder="Add context…">${esc(state.activityNotes[item.id] || '')}</textarea></div><div class="activity-actions"><button class="complete-btn" data-complete="${esc(item.id)}">Log activity</button><button class="edit-history-link" type="button" data-edit-history="${esc(item.id)}">Edit history</button><button class="remove-activity" type="button" data-remove-activity="${esc(item.id)}">Remove</button></div></div>`;
       }).join('');
       if (!items.length) return '';
       return `<section class="card activity-group"><header class="activity-group-head"><h3>${esc(group.name)}</h3><span>${esc(group.note)}</span></header><div class="activity-table"><div class="activity-row activity-row-head"><div>Maintenance activity</div><div>Suggested interval</div><div>Latest action</div><div>Previous action</div><div>Notes</div><div>Actions</div></div>${rows}</div></section>`;
@@ -437,7 +438,24 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
   document.querySelector('#odometerForm').addEventListener('submit', event => { event.preventDefault(); state.odometer = { km: Number(document.querySelector('#odometerInput').value), date: document.querySelector('#odometerDateInput').value }; save(); odometerDialog.close(); render(); toast('Odometer updated'); });
 
   const recordDialog = document.querySelector('#recordDialog');
+  const historyPickerDialog = document.querySelector('#historyPickerDialog');
   let editingId = null;
+  function historyOption(record, position, schedule) {
+    if (!record) return '';
+    const matchingItems = record.items.filter(item => schedule.match.includes(item));
+    const odometer = record.km != null ? `${fmtKm(record.km)} km` : 'Odometer not recorded';
+    return `<button class="history-picker-option" type="button" data-edit-history-record="${esc(record.id)}"><strong>${esc(position)}</strong><span>${esc(matchingItems.join(', ') || schedule.name)}</span><span>${fmtDate(record.date)} · ${esc(odometer)}</span></button>`;
+  }
+  function openHistoryPicker(scheduleId) {
+    const schedule = state.schedules.find(item => item.id === scheduleId);
+    if (!schedule) return;
+    const history = historyFor(schedule);
+    const options = [historyOption(history[0], 'Latest action', schedule), historyOption(history[1], 'Previous action', schedule)].filter(Boolean).join('');
+    document.querySelector('#historyPickerTitle').textContent = `Modify ${schedule.name}`;
+    document.querySelector('#historyPickerOptions').innerHTML = options || '<div class="history-picker-empty">No saved actions are available to modify.</div>';
+    historyPickerDialog.showModal();
+    historyPickerDialog.scrollTop = 0;
+  }
   function openRecord(preselect, existing) {
     editingId = existing?.id || null;
     document.querySelector('#recordDialogTitle').textContent = existing ? 'Update service record' : preselect ? `Update ${preselect}` : 'Add service / update';
@@ -454,6 +472,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
   }
   document.querySelector('#addRecord').addEventListener('click', () => openRecord());
   document.querySelector('#cancelRecord').addEventListener('click', () => recordDialog.close());
+  document.querySelector('#cancelHistoryPicker').addEventListener('click', () => historyPickerDialog.close());
   document.querySelector('#recordForm').addEventListener('submit', event => {
     event.preventDefault();
     const items = [...document.querySelectorAll('input[name="serviceItem"]:checked')].map(input => input.value);
@@ -496,6 +515,10 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       }, { once: true });
       return;
     }
+    const pickHistory = event.target.closest('[data-edit-history]');
+    if (pickHistory) { openHistoryPicker(pickHistory.dataset.editHistory); return; }
+    const editHistoryRecord = event.target.closest('[data-edit-history-record]');
+    if (editHistoryRecord) { const record = state.records.find(item => item.id === editHistoryRecord.dataset.editHistoryRecord); if (record) { historyPickerDialog.close(); openRecord(null, record); } return; }
     const complete = event.target.closest('[data-complete]'); if (complete) { const item = state.schedules.find(schedule => schedule.id === complete.dataset.complete); openRecord(item?.match[0]); }
     const edit = event.target.closest('.edit-record'); if (edit) openRecord(null, state.records.find(record => record.id === edit.dataset.id));
   });
