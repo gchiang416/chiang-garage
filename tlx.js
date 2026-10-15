@@ -51,7 +51,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
       { id: 'brakeinspect', name: 'Brake servicing (including lubrication)', category: 'Brakes', km: null, months: 24, firstMonths: 24, match: ['Brake service', 'Brake system inspection', 'Brake servicing (including lubrication)'], basis: 'Owner-selected interval informed by Acura Maintenance Minder B', toyota: 'Every 2 years; clean and lubricate caliper pins and brake hardware' },
       { id: 'brakewear', name: 'Brake pads & rotors', category: 'Brakes', km: null, months: null, conditionOnly: true, match: ['Brake pads & rotors', 'Brake pad replacement', 'Brake rotor replacement'], basis: 'Condition-based wear item', toyota: 'Inspect during routine service; replace based on wear and condition' },
       { id: 'battery', name: 'Battery', category: 'Electrical', km: null, months: 60, firstMonths: 60, match: ['Battery replaced', 'Battery test', 'Battery'], basis: 'Workbook schedule', toyota: 'Check every service; replace every 4–6 years' },
-      { id: 'belt', name: 'Drive belt (serpentine belt)', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['Drive belt inspection', 'Drive belt (serpentine belt)', 'Serpentine belt', 'Serpentine belt replacement', 'Replace serpentine belt'], basis: 'Acura Maintenance Minder code 2', toyota: 'Inspect when Maintenance Minder code 2 appears; replace if worn, damaged or deteriorated' },
+      { id: 'belt', name: 'Drive belt (serpentine belt)', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['Drive belt replacement', 'Drive belt inspection', 'Drive belt (serpentine belt)', 'Serpentine belt', 'Serpentine belt replacement', 'Replace serpentine belt'], basis: 'Acura Maintenance Minder code 2', toyota: 'Inspect when Maintenance Minder code 2 appears; replace if worn, damaged or deteriorated' },
       { id: 'coolant', name: 'Engine coolant', category: 'Engine', km: 80000, months: 60, firstKm: 160000, firstMonths: 120, match: ['Engine coolant'], basis: 'Workbook schedule', toyota: 'First at 160,000 km or 10 years; then every 80,000 km or 5 years' },
       { id: 'plugs', name: 'Spark plugs', category: 'Engine', km: 160000, months: null, firstKm: 160000, match: ['Spark plugs'], basis: 'Workbook schedule', toyota: 'Every 160,000 km' },
       { id: 'pcv', name: 'PCV valve', category: 'Engine', km: null, months: null, conditionOnly: true, match: ['PCV valve', 'PCV valve replacement', 'Replace PCV valve'], basis: 'Owner workbook', toyota: 'Inspect during routine service; replace if faulty' },
@@ -171,7 +171,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     </main>
     <dialog id="odometerDialog"><form method="dialog" class="modal" id="odometerForm"><h2>Update odometer</h2><p>This reading drives the distance-based reminders.</p><div class="field"><label for="odometerInput">Odometer (km)</label><input id="odometerInput" type="number" min="0" step="1" required inputmode="numeric"></div><div class="field"><label for="odometerDateInput">Reading date</label><input id="odometerDateInput" type="date" required></div><div class="modal-actions"><button class="btn" type="button" id="cancelOdometer">Cancel</button><button class="btn primary" value="save">Save reading</button></div></form></dialog>
     <dialog id="recordDialog"><form method="dialog" class="modal" id="recordForm"><h2 id="recordDialogTitle">Log service</h2><p>Save the date and odometer reading for completed maintenance.</p><div class="form-grid"><div class="field"><label for="recordDate">Service date</label><input id="recordDate" type="date" required></div><div class="field"><label for="recordKm">Odometer (km)</label><input id="recordKm" type="number" min="0" step="1" inputmode="numeric" required></div><div class="field wide"><label>Work completed</label><div class="checks" id="itemChecks"></div></div><div class="field wide"><label for="customItem">Other item</label><input id="customItem" type="text" placeholder="e.g. Wiper blades"></div><div class="field"><label for="recordShop">Shop</label><input id="recordShop" type="text" placeholder="Optional"></div><div class="field"><label for="recordCost">Cost (CAD)</label><input id="recordCost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Optional"></div><div class="field wide"><label for="recordNotes">Notes</label><textarea id="recordNotes" placeholder="Parts used, observations, follow-up…"></textarea></div></div><div class="modal-actions"><button class="btn" type="button" id="cancelRecord">Cancel</button><button class="btn primary" value="save">Save service</button></div></form></dialog>
-    <dialog id="historyPickerDialog"><div class="modal history-picker-modal"><h2 id="historyPickerTitle">Modify service history</h2><p>Select the saved action you want to update.</p><div class="history-picker-options" id="historyPickerOptions"></div><p class="history-picker-note">This opens the complete service record. Other maintenance saved during the same visit will be shown too.</p><div class="modal-actions"><button class="btn" type="button" id="cancelHistoryPicker">Cancel</button></div></div></dialog>
+    <dialog id="historyPickerDialog"><div class="modal history-picker-modal"><h2 id="historyPickerTitle">Modify service history</h2><p>Edit or delete a saved action.</p><div class="history-picker-options" id="historyPickerOptions"></div><p class="history-picker-note">Editing opens the complete service record. Deleting removes only this maintenance item and keeps other work saved during the same visit.</p><div class="modal-actions"><button class="btn" type="button" id="cancelHistoryPicker">Cancel</button></div></div></dialog>
     <dialog id="confirmDialog"><form method="dialog" class="modal"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="modal-actions"><button class="btn" value="cancel">Cancel</button><button class="btn danger" value="confirm">Confirm</button></div></form></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
@@ -444,7 +444,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     if (!record) return '';
     const matchingItems = record.items.filter(item => schedule.match.includes(item));
     const odometer = record.km != null ? `${fmtKm(record.km)} km` : 'Odometer not recorded';
-    return `<button class="history-picker-option" type="button" data-edit-history-record="${esc(record.id)}"><strong>${esc(position)}</strong><span>${esc(matchingItems.join(', ') || schedule.name)}</span><span>${fmtDate(record.date)} · ${esc(odometer)}</span></button>`;
+    return `<div class="history-picker-option"><button class="history-picker-option-main" type="button" data-edit-history-record="${esc(record.id)}"><strong>${esc(position)}</strong><span>${esc(matchingItems.join(', ') || schedule.name)}</span><span>${fmtDate(record.date)} · ${esc(odometer)}</span></button><button class="history-picker-delete" type="button" data-delete-history-record="${esc(record.id)}" data-delete-history-schedule="${esc(schedule.id)}" aria-label="Delete ${esc(position.toLowerCase())} for ${esc(schedule.name)}">Delete</button></div>`;
   }
   function openHistoryPicker(scheduleId) {
     const schedule = state.schedules.find(item => item.id === scheduleId);
@@ -519,6 +519,30 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     if (pickHistory) { openHistoryPicker(pickHistory.dataset.editHistory); return; }
     const editHistoryRecord = event.target.closest('[data-edit-history-record]');
     if (editHistoryRecord) { const record = state.records.find(item => item.id === editHistoryRecord.dataset.editHistoryRecord); if (record) { historyPickerDialog.close(); openRecord(null, record); } return; }
+    const deleteHistoryRecord = event.target.closest('[data-delete-history-record]');
+    if (deleteHistoryRecord) {
+      const record = state.records.find(item => item.id === deleteHistoryRecord.dataset.deleteHistoryRecord);
+      const schedule = state.schedules.find(item => item.id === deleteHistoryRecord.dataset.deleteHistorySchedule);
+      if (!record || !schedule) return;
+      const matchingItems = record.items.filter(item => schedule.match.includes(item));
+      const remainingItems = record.items.filter(item => !schedule.match.includes(item));
+      historyPickerDialog.close();
+      const dialog = document.querySelector('#confirmDialog');
+      document.querySelector('#confirmTitle').textContent = `Delete ${schedule.name} action?`;
+      document.querySelector('#confirmText').textContent = remainingItems.length
+        ? `This removes ${matchingItems.join(', ') || schedule.name} from the service record dated ${fmtDate(record.date)}. Other maintenance saved during that visit will be kept.`
+        : `This permanently deletes the service record dated ${fmtDate(record.date)} because it contains no other maintenance items.`;
+      dialog.showModal();
+      dialog.addEventListener('close', () => {
+        if (dialog.returnValue !== 'confirm') return;
+        state.records = remainingItems.length
+          ? state.records.map(item => item.id === record.id ? { ...item, items: remainingItems } : item)
+          : state.records.filter(item => item.id !== record.id);
+        state.planned = reconcilePlanned(state.records, state.planned);
+        save(); render(); toast(`${schedule.name} action deleted`);
+      }, { once: true });
+      return;
+    }
     const complete = event.target.closest('[data-complete]'); if (complete) { const item = state.schedules.find(schedule => schedule.id === complete.dataset.complete); openRecord(item?.match[0]); }
     const edit = event.target.closest('.edit-record'); if (edit) openRecord(null, state.records.find(record => record.id === edit.dataset.id));
   });
