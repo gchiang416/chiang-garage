@@ -30,7 +30,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchGarage, writeGar
     removedActivityIds: [],
     schedules: [
       { id: 'oil', name: 'Engine oil & filter', category: 'Engine', km: 8000, months: 6, match: ['Engine oil & filter', 'Oil change'], basis: 'Owner-selected interval', toyota: '8,000 km / 6 months' },
-      { id: 'tires', name: 'Tire rotation & inspection', category: 'Tires', km: 8000, months: 6, match: ['Tire rotation', 'New tires installed'], basis: 'Toyota Canada', toyota: '8,000 km / 6 months' },
+      { id: 'tires', name: 'Tire rotation', category: 'Tires', km: 8000, months: 6, match: ['Tire rotation', 'New tires installed'], basis: 'Toyota Canada', toyota: '8,000 km / 6 months' },
       { id: 'cabin', name: 'Cabin air filter', category: 'Filters', km: 16000, months: 12, match: ['Cabin air filter'], basis: 'Toyota Canada', toyota: '16,000 km / 12 months' },
       { id: 'air', name: 'Engine air filter', category: 'Filters', km: 48000, months: 36, match: ['Engine air filter'], basis: 'User plan', toyota: '48,000 km / 36 months; inspect sooner in dust' },
       { id: 'brakeinspect', name: 'Brake servicing', category: 'Brakes', km: null, months: 24, match: ['Brake service', 'Brake pads', 'Brake rotors'], basis: 'Owner-selected interval', toyota: 'Every 2 years' },

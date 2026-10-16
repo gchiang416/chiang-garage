@@ -41,7 +41,7 @@ import { isAuthorizedUser, signIn, signOutUser, watchAuth, watchTlx, writeTlx } 
     removedActivityIds: [],
     schedules: [
       { id: 'oil', name: 'Engine oil & filter', category: 'Routine', km: 8000, months: 12, firstKm: 8000, firstMonths: 12, match: ['Engine oil & filter', 'Oil change'], basis: 'Workbook schedule', toyota: 'Every 8,000 km or 12 months' },
-      { id: 'tires', name: 'Tire rotation & inspection', category: 'Chassis', km: 8000, months: null, firstKm: 8000, match: ['Tire rotation', 'Tire inspection', 'New tires installed'], basis: 'Workbook schedule', toyota: 'Rotate every 8,000 km; replace below 2/32 in tread' },
+      { id: 'tires', name: 'Tire rotation', category: 'Chassis', km: 8000, months: null, firstKm: 8000, match: ['Tire rotation', 'Tire inspection', 'New tires installed'], basis: 'Workbook schedule', toyota: 'Rotate every 8,000 km; replace below 2/32 in tread' },
       { id: 'alignment', name: 'Alignment check', category: 'Chassis', km: null, months: 12, firstMonths: 12, match: ['Alignment check', 'Wheel alignment'], basis: 'Workbook schedule', toyota: 'Annually or if uneven tire wear occurs' },
       { id: 'suspension', name: 'Suspension & steering check', category: 'Chassis', km: 48000, months: null, firstKm: 48000, match: ['Suspension & steering check', 'Suspension & steering inspection'], basis: 'Workbook schedule', toyota: 'Inspect every 48,000 km' },
       { id: 'shocks', name: 'Shocks & struts', category: 'Chassis', km: 48000, months: null, firstKm: 48000, match: ['Shocks & struts', 'Shocks and struts'], basis: 'Workbook schedule', toyota: 'Inspect every 48,000 km; replace as needed' },
